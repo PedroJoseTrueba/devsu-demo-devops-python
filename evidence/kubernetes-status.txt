@@ -1,0 +1,46 @@
+Collected (UTC): 2026-11-09T17:36:06Z
+
+Kubernetes context:
+colima
+
+Nodes:
+NAME     STATUS   ROLES           AGE   VERSION
+colima   Ready    control-plane   48m   v1.35.0+k3s1
+
+API and database resources:
+NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/devsu-api   2/2     2            2           32m
+deployment.apps/postgres    1/1     1            1           36m
+
+NAME                            READY   STATUS      RESTARTS      AGE
+pod/db-migrate-z22fj            0/1     Completed   0             33m
+pod/devsu-api-b6bff5fd6-56p5n   1/1     Running     1 (25m ago)   32m
+pod/devsu-api-b6bff5fd6-sgxcd   1/1     Running     1 (25m ago)   32m
+pod/postgres-64579cd887-llmbc   1/1     Running     1 (25m ago)   36m
+
+NAME                TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)    AGE
+service/devsu-api   ClusterIP   10.43.51.16   <none>        80/TCP     32m
+service/postgres    ClusterIP   10.43.99.94   <none>        5432/TCP   36m
+
+NAME                                  CLASS     HOSTS         ADDRESS       PORTS   AGE
+ingress.networking.k8s.io/devsu-api   traefik   devsu.local   192.168.5.1   80      17m
+
+NAME                                            REFERENCE              TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/devsu-api   Deployment/devsu-api   cpu: 2%/70%   2         4         2          29m
+
+NAME                                  STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/postgres-data   Bound    pvc-d44c0d9b-f2ae-4bb0-8489-7cb341103389   1Gi        RWO            local-path     <unset>                 36m
+
+HPA metrics:
+NAME        REFERENCE              TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+devsu-api   Deployment/devsu-api   cpu: 2%/70%   2         4         2          29m
+
+Pods resource usage:
+NAME                        CPU(cores)   MEMORY(bytes)
+devsu-api-b6bff5fd6-56p5n   2m           146Mi
+devsu-api-b6bff5fd6-sgxcd   3m           109Mi
+postgres-64579cd887-llmbc   5m           48Mi
+
+Recent migration result:
+NAME         STATUS     COMPLETIONS   DURATION   AGE
+db-migrate   Complete   1/1           7s         33m

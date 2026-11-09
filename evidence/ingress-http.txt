@@ -1,0 +1,13 @@
+HTTP/1.1 200 OK
+Allow: GET, POST, HEAD, OPTIONS
+Content-Length: 2
+Content-Type: application/json
+Cross-Origin-Opener-Policy: same-origin
+Date: Mon, 09 Nov 2026 17:36:09 GMT
+Referrer-Policy: same-origin
+Server: gunicorn
+Vary: Accept, Cookie
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+[]
