@@ -1,0 +1,32 @@
+*.log
+*.pot
+*.pyc
+__pycache__/
+
+db.sqlite3
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Database
+db.sqlite3
+*.sqlite3
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
