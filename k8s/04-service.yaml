@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: devsu-api
+  namespace: devsu
+spec:
+  type: ClusterIP
+  selector:
+    app: devsu-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devsu-api
+  namespace: devsu
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devsu-api
+  template:
+    metadata:
+      labels:
+        app: devsu-api
+    spec:
+      containers:
+        - name: api
+          image: devsu-demo-python:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: devsu-config
+          env:
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devsu-secrets
+                  key: DJANGO_SECRET_KEY
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devsu-secrets
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /api/
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: devsu.local
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: devsu.local
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi

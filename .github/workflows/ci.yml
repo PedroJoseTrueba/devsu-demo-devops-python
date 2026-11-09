@@ -79,3 +79,89 @@ jobs:
           tags: |
             ghcr.io/pedrojosetrueba/devsu-demo-devops-python:latest
             ghcr.io/pedrojosetrueba/devsu-demo-devops-python:${{ github.sha }}
+
+  kubernetes:
+    name: Kubernetes deployment smoke test (kind)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Create ephemeral Kubernetes cluster
+        uses: helm/kind-action@v1.14.0
+        with:
+          cluster_name: devsu-ci
+
+      - name: Build the same application image
+        run: docker build -t devsu-demo-python:ci .
+
+      - name: Load local image into kind
+        run: kind load docker-image devsu-demo-python:ci --name devsu-ci
+
+      - name: Apply Kubernetes configuration and start PostgreSQL
+        run: |
+          kubectl apply -f k8s/00-namespace.yaml
+          kubectl apply -f k8s/01-configmap.yaml
+
+          # These are ephemeral CI-only credentials, not production secrets.
+          DJANGO_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          POSTGRES_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          kubectl -n devsu create secret generic devsu-secrets \
+            --from-literal=DJANGO_SECRET_KEY="$DJANGO_KEY" \
+            --from-literal=POSTGRES_PASSWORD="$POSTGRES_KEY"
+
+          kubectl apply -f k8s/02-postgres.yaml
+          kubectl -n devsu rollout status deployment/postgres --timeout=180s
+
+      - name: Run Django migrations in Kubernetes
+        run: |
+          sed 's|devsu-demo-python:latest|devsu-demo-python:ci|g' \
+            k8s/07-migrate-job.yaml > /tmp/migrate-ci.yaml
+          kubectl apply -f /tmp/migrate-ci.yaml
+          kubectl -n devsu wait --for=condition=complete job/db-migrate --timeout=180s
+          kubectl -n devsu logs job/db-migrate
+
+      - name: Deploy API, Service, Ingress declaration and HPA
+        run: |
+          sed 's|devsu-demo-python:latest|devsu-demo-python:ci|g' \
+            k8s/03-api.yaml > /tmp/api-ci.yaml
+          kubectl apply -f /tmp/api-ci.yaml
+          kubectl apply -f k8s/04-service.yaml
+          # kind has no Traefik controller; the Ingress resource is validated,
+          # while actual Ingress routing has been tested locally in Colima.
+          kubectl apply -f k8s/05-ingress.yaml
+          kubectl apply -f k8s/06-hpa.yaml
+          kubectl -n devsu rollout status deployment/devsu-api --timeout=180s
+          test "$(kubectl -n devsu get deploy devsu-api -o jsonpath='{.status.readyReplicas}')" = "2"
+          kubectl -n devsu get deployments,services,ingresses,hpa
+
+      - name: HTTP smoke test through the Kubernetes Service
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl -n devsu port-forward svc/devsu-api 18080:80 > /tmp/devsu-port-forward.log 2>&1 &
+          PF_PID=$!
+          trap 'kill "$PF_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:18080/api/users/ -o /tmp/devsu-users.json; then
+              python3 -c 'import json; assert isinstance(json.load(open("/tmp/devsu-users.json")), list)'
+              echo 'Kubernetes Service smoke test: PASS'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Kubernetes Service smoke test: FAIL'
+          cat /tmp/devsu-port-forward.log
+          exit 1
+
+      - name: Print Kubernetes diagnostics if deployment fails
+        if: failure()
+        run: |
+          kubectl -n devsu get pods,deployments,jobs,services,hpa -o wide || true
+          kubectl -n devsu describe pods || true
+          kubectl -n devsu logs job/db-migrate --all-containers=true || true
+          kubectl -n devsu logs deployment/devsu-api --all-containers=true --tail=100 || true
+          kubectl -n devsu logs deployment/postgres --all-containers=true --tail=100 || true

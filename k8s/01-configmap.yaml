@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devsu-config
+  namespace: devsu
+data:
+  DJANGO_DEBUG: "False"
+  DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,devsu.local,devsu-api,devsu-api.devsu.svc.cluster.local"
+  DATABASE_HOST: "postgres"
+  DATABASE_PORT: "5432"
+  POSTGRES_DB: "devsu"
+  POSTGRES_USER: "devsu"
